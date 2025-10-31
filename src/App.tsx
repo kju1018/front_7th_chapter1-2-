@@ -104,8 +104,38 @@ function App() {
 
   const [isOverlapDialogOpen, setIsOverlapDialogOpen] = useState(false);
   const [overlappingEvents, setOverlappingEvents] = useState<Event[]>([]);
+  const [isEditSingleDialogOpen, setIsEditSingleDialogOpen] = useState(false);
+  const [pendingEditEvent, setPendingEditEvent] = useState<Event | null>(null);
 
   const { enqueueSnackbar } = useSnackbar();
+
+  const handleEditClick = (event: Event) => {
+    // 반복 일정인지 확인
+    if (event.repeat.type !== 'none') {
+      setPendingEditEvent(event);
+      setIsEditSingleDialogOpen(true);
+    } else {
+      editEvent(event);
+    }
+  };
+
+  const handleEditSingleConfirm = (editSingleOnly: boolean) => {
+    setIsEditSingleDialogOpen(false);
+    if (pendingEditEvent) {
+      if (editSingleOnly) {
+        // 해당 일정만 수정 - repeat type을 none으로 변경
+        const modifiedEvent = {
+          ...pendingEditEvent,
+          repeat: { type: 'none' as const, interval: 0 },
+        };
+        editEvent(modifiedEvent);
+      } else {
+        // 전체 시리즈 수정
+        editEvent(pendingEditEvent);
+      }
+      setPendingEditEvent(null);
+    }
+  };
 
   const addOrUpdateEvent = async () => {
     if (!title || !date || !startTime || !endTime) {
@@ -582,7 +612,7 @@ function App() {
                     </Typography>
                   </Stack>
                   <Stack>
-                    <IconButton aria-label="Edit event" onClick={() => editEvent(event)}>
+                    <IconButton aria-label="Edit event" onClick={() => handleEditClick(event)}>
                       <Edit />
                     </IconButton>
                     <IconButton aria-label="Delete event" onClick={() => deleteEvent(event.id)}>
@@ -634,6 +664,21 @@ function App() {
             }}
           >
             계속 진행
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={isEditSingleDialogOpen} onClose={() => setIsEditSingleDialogOpen(false)}>
+        <DialogTitle>반복 일정 수정</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            해당 일정만 수정하시겠어요?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => handleEditSingleConfirm(false)}>아니오</Button>
+          <Button onClick={() => handleEditSingleConfirm(true)} color="primary">
+            예
           </Button>
         </DialogActions>
       </Dialog>
