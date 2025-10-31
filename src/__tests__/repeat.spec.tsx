@@ -368,3 +368,135 @@ describe("반복 종료 조건 지정 기능", () => {
     expect(intervalLabel).toBeInTheDocument();
   });
 });
+
+describe("반복 일정 수정 시 단일 수정 기능", () => {
+  it("반복 일정 수정 시 '해당 일정만 수정하시겠어요?' 텍스트가 표시되어야 한다", async () => {
+    // [RED]
+    // Given: 반복 일정이 저장된 상태
+    // When: 사용자가 반복 일정을 수정하려고 함
+    // Then: '해당 일정만 수정하시겠어요?' 텍스트가 표시되어야 함
+    
+    setupMockHandlerCreation([
+      {
+        id: '1',
+        title: '매주 회의',
+        date: '2025-10-20',
+        startTime: '10:00',
+        endTime: '11:00',
+        description: '주간 팀 미팅',
+        location: '회의실 A',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+      {
+        id: '2',
+        title: '매주 회의',
+        date: '2025-10-27',
+        startTime: '10:00',
+        endTime: '11:00',
+        description: '주간 팀 미팅',
+        location: '회의실 A',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      }
+    ]);
+    
+    const { user } = setup(<App />);
+    
+    // 반복 일정 목록 확인 (여러 개의 같은 제목이 있으므로 findAllByText 사용)
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvents = await within(eventList).findAllByText('매주 회의');
+    expect(repeatEvents.length).toBeGreaterThan(0);
+    
+    // Edit 버튼 클릭
+    const editButtons = screen.getAllByRole('button', { name: 'Edit event' });
+    await user.click(editButtons[0]);
+    
+    // '해당 일정만 수정하시겠어요?' 다이얼로그 확인
+    const dialog = await screen.findByRole('dialog');
+    const dialogText = await within(dialog).findByText(/해당 일정만 수정하시겠어요?/i);
+    expect(dialogText).toBeInTheDocument();
+  });
+
+  it("'예' 버튼을 클릭하면 해당 일정만 단일 수정되어야 한다", async () => {
+    // [RED]
+    // Given: '해당 일정만 수정하시겠어요?' 다이얼로그가 표시된 상태
+    // When: 사용자가 '예' 버튼을 클릭함
+    // Then: 해당 일정만 수정되어야 함
+    
+    // 반복 일정 시리즈 3개로 초기화 (모두 같은 월로 설정)
+    setupMockHandlerCreation([
+      {
+        id: '1',
+        title: '매주 팀 미팅',
+        date: '2025-10-13',
+        startTime: '14:00',
+        endTime: '15:00',
+        description: '주간 미팅',
+        location: '회의실',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+      {
+        id: '2',
+        title: '매주 팀 미팅',
+        date: '2025-10-20',
+        startTime: '14:00',
+        endTime: '15:00',
+        description: '주간 미팅',
+        location: '회의실',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+      {
+        id: '3',
+        title: '매주 팀 미팅',
+        date: '2025-10-27',
+        startTime: '14:00',
+        endTime: '15:00',
+        description: '주간 미팅',
+        location: '회의실',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      }
+    ]);
+    
+    const { user } = setup(<App />);
+    
+    // 생성된 반복 일정 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvents = await within(eventList).findAllByText('매주 팀 미팅');
+    
+    expect(repeatEvents.length).toBe(3); // 3개의 반복 일정
+    
+    // 첫 번째 일정의 Edit 버튼 클릭하여 수정 모드 진입
+    const editButtons = screen.getAllByRole('button', { name: 'Edit event' });
+    await user.click(editButtons[0]);
+    
+    // 다이얼로그에서 '예' 버튼 클릭 (해당 일정만 수정)
+    const dialog = await screen.findByRole('dialog');
+    const yesButton = await within(dialog).findByRole('button', { name: /예/i });
+    await user.click(yesButton);
+    
+    // 일정 제목 수정
+    const titleInput = screen.getByLabelText('제목');
+    await user.clear(titleInput);
+    await user.type(titleInput, '수정된 팀 미팅');
+    
+    // 수정 완료
+    await user.click(screen.getByTestId('event-submit-button'));
+    
+    // 수정된 일정 확인
+    const updatedEvent = await within(eventList).findByText('수정된 팀 미팅');
+    expect(updatedEvent).toBeInTheDocument();
+    
+    // 나머지 2개의 원본 반복 일정은 그대로 유지되어야 함
+    const remainingEvents = within(eventList).queryAllByText('매주 팀 미팅');
+    expect(remainingEvents.length).toBe(2);
+  });
+});
