@@ -119,6 +119,59 @@ function App() {
 
   const { enqueueSnackbar } = useSnackbar();
 
+  // 반복 일정 생성 함수
+  const generateRecurringEvents = (
+    baseEvent: Event | EventForm,
+    repeatType: RepeatType,
+    repeatInterval: number,
+    repeatEndDate: string
+  ): (Event | EventForm)[] => {
+    const events: (Event | EventForm)[] = [];
+    const startDate = new Date(baseEvent.date);
+    const endDate = new Date(repeatEndDate);
+
+    let currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      events.push({
+        ...baseEvent,
+        date: currentDate.toISOString().split('T')[0],
+      });
+
+      // 반복 간격에 따라 다음 날짜 계산
+      const nextDate = new Date(currentDate);
+      switch (repeatType) {
+        case 'daily':
+          nextDate.setDate(nextDate.getDate() + repeatInterval);
+          break;
+        case 'weekly':
+          nextDate.setDate(nextDate.getDate() + 7 * repeatInterval);
+          break;
+        case 'monthly': {
+          // 월말 대응: 원본 일자의 일(day)을 유지하되, 그 일이 없으면 스킵
+          const originalDay = startDate.getDate();
+          nextDate.setMonth(nextDate.getMonth() + repeatInterval);
+          nextDate.setDate(originalDay);
+
+          // 설정한 날짜가 해당 월에 존재하지 않으면 스킵 (예: 2월 31일 -> 날짜가 3월이 됨)
+          if (nextDate.getDate() !== originalDay) {
+            // 월말이 원본 일자보다 작은 경우, 해당 월을 건너뛰고 다음 달 계산
+            currentDate = nextDate;
+            continue;
+          }
+          break;
+        }
+        case 'yearly':
+          nextDate.setFullYear(nextDate.getFullYear() + repeatInterval);
+          break;
+      }
+
+      currentDate = nextDate;
+    }
+
+    return events;
+  };
+
   const handleEditClick = (event: Event) => {
     // 반복 일정인지 확인
     if (event.repeat.type !== 'none') {
@@ -238,6 +291,34 @@ function App() {
       if (isEditingAllSeries && editingEvent) {
         await saveAllSeriesEvents(eventData as Event);
         setIsEditingAllSeries(false);
+      } else if (isRepeating && !editingEvent && repeatEndDate) {
+        // 반복 일정 생성 (새로운 일정, 반복 유형 선택됨, 종료일 지정됨)
+        const recurringEvents = generateRecurringEvents(
+          eventData,
+          repeatType,
+          repeatInterval,
+          repeatEndDate
+        );
+
+        // /api/events-list로 여러 이벤트 저장
+        try {
+          const response = await fetch('/api/events-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ events: recurringEvents }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to save recurring events');
+          }
+
+          await fetchEvents();
+          resetForm();
+          enqueueSnackbar('일정이 추가되었습니다.', { variant: 'success' });
+        } catch (error) {
+          console.error('Error saving recurring events:', error);
+          enqueueSnackbar('일정 저장 실패', { variant: 'error' });
+        }
       } else {
         await saveEvent(eventData);
       }
@@ -620,8 +701,9 @@ function App() {
                   />
                 </FormControl>
                 <FormControl fullWidth>
-                  <FormLabel>반복 종료일</FormLabel>
+                  <FormLabel htmlFor="repeat-end-date">반복 종료일</FormLabel>
                   <TextField
+                    id="repeat-end-date"
                     size="small"
                     type="date"
                     value={repeatEndDate}
