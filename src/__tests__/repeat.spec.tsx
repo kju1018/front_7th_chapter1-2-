@@ -2,11 +2,13 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { render, screen, within } from '@testing-library/react';
 import { UserEvent, userEvent } from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { SnackbarProvider } from 'notistack';
 import { ReactElement } from 'react';
 
 import { setupMockHandlerCreation, setupMockHandlerDeletion } from '../__mocks__/handlersUtils';
 import App from '../App';
+import { server } from '../setupTests';
 import { Event } from '../types';
 
 const theme = createTheme();
@@ -194,6 +196,149 @@ describe('일정 생성 또는 수정 시 반복 유형 선택 기능', () => {
 
     // 매년이 선택되어야 함
     expect(repeatTypeSelect).toHaveTextContent('매년');
+  });
+});
+
+describe('반복 일정 생성 시 31일 매월 반복 기능', () => {
+  it('31일에 매월을 선택하면 31일에만 생성된다 (월말이 아닌 31일 고정)', async () => {
+    // Given: Mock handler 설정
+    const mockEvents: Event[] = [];
+
+    server.use(
+      http.get('/api/events', () => {
+        return HttpResponse.json({ events: mockEvents });
+      }),
+      http.post('/api/events-list', async ({ request }) => {
+        const body = (await request.json()) as { events: Event[] };
+        mockEvents.push(...body.events);
+        return HttpResponse.json({ events: body.events }, { status: 201 });
+      })
+    );
+
+    const { user } = setup(<App />);
+
+    // 일정 정보 입력
+    const titleInput = screen.getByLabelText('제목');
+    await user.type(titleInput, '반복 월말 회의');
+
+    const dateInput = screen.getByLabelText('날짜');
+    await user.clear(dateInput);
+    await user.type(dateInput, '2025-01-31');
+
+    const startTimeInput = screen.getByLabelText('시작 시간');
+    await user.clear(startTimeInput);
+    await user.type(startTimeInput, '10:00');
+
+    const endTimeInput = screen.getByLabelText('종료 시간');
+    await user.clear(endTimeInput);
+    await user.type(endTimeInput, '11:00');
+
+    // 반복 일정 활성화
+    const repeatCheckbox = screen.getByRole('checkbox', { name: '반복 일정' });
+    await user.click(repeatCheckbox);
+
+    // 반복 유형 선택 - 매월
+    const repeatTypeSelect = screen.getByRole('combobox', { name: /반복 유형/i });
+    await user.click(repeatTypeSelect);
+    const monthlyOption = screen.getByRole('option', { name: /매월/i });
+    await user.click(monthlyOption);
+
+    // 반복 종료일 설정 - 5월 31일 (3개월 동안 1월, 3월, 5월)
+    const endDateInput = screen.getByLabelText(/반복 종료일/i);
+    await user.clear(endDateInput);
+    await user.type(endDateInput, '2025-05-31');
+
+    // When: 추가 버튼 클릭
+    const addButton = screen.getByRole('button', { name: /추가/i });
+    await user.click(addButton);
+
+    // Then: 성공 메시지 확인
+    await screen.findByText(/일정이 추가되었습니다/i);
+
+    // 일정이 실제로 생성되었는지 확인 - mockEvents에 3개의 일정이 있어야 함
+    expect(mockEvents.length).toBe(3);
+
+    // 각 일정의 날짜 검증
+    const dates = mockEvents.map((e) => e.date).sort();
+    expect(dates).toEqual(['2025-01-31', '2025-03-31', '2025-05-31']);
+
+    // 모든 일정이 "월말 회의" 제목을 가져야 함
+    expect(mockEvents.every((e) => e.title === '반복 월말 회의')).toBe(true);
+  });
+
+  it('31일에 매월 반복 선택 시 31일이 없는 월(2월, 4월, 6월, 9월, 11월)에는 일정이 생성되지 않아야 한다', async () => {
+    // [RED]
+    // Given: 31일에 매월 반복 일정이 저장된 상태
+    // When: 31일이 없는 월(2월, 4월, 6월, 9월, 11월)을 확인함
+    // Then: 해당 월에 반복 일정이 표시되지 않아야 함
+
+    const mockEvents: Event[] = [];
+
+    server.use(
+      http.get('/api/events', () => {
+        return HttpResponse.json({ events: mockEvents });
+      }),
+      http.post('/api/events-list', async ({ request }) => {
+        const body = (await request.json()) as { events: Event[] };
+        mockEvents.push(...body.events);
+        return HttpResponse.json({ events: body.events }, { status: 201 });
+      })
+    );
+
+    const { user } = setup(<App />);
+
+    // 일정 정보 입력 - 1월 31일부터 11월까지 매월 반복
+    const titleInput = screen.getByLabelText('제목');
+    await user.type(titleInput, '매월 반복 일정');
+
+    const dateInput = screen.getByLabelText('날짜');
+    await user.clear(dateInput);
+    await user.type(dateInput, '2025-01-31');
+
+    const startTimeInput = screen.getByLabelText('시작 시간');
+    await user.clear(startTimeInput);
+    await user.type(startTimeInput, '10:00');
+
+    const endTimeInput = screen.getByLabelText('종료 시간');
+    await user.clear(endTimeInput);
+    await user.type(endTimeInput, '11:00');
+
+    // 반복 일정 활성화
+    const repeatCheckbox = screen.getByRole('checkbox', { name: '반복 일정' });
+    await user.click(repeatCheckbox);
+
+    // 반복 유형 선택 - 매월
+    const repeatTypeSelect = screen.getByRole('combobox', { name: /반복 유형/i });
+    await user.click(repeatTypeSelect);
+    const monthlyOption = screen.getByRole('option', { name: /매월/i });
+    await user.click(monthlyOption);
+
+    // 반복 종료일 설정 - 11월 30일 (31일이 없는 11월)
+    const endDateInput = screen.getByLabelText(/반복 종료일/i);
+    await user.clear(endDateInput);
+    await user.type(endDateInput, '2025-11-30');
+
+    // When: 추가 버튼 클릭
+    const addButton = screen.getByRole('button', { name: /추가/i });
+    await user.click(addButton);
+
+    // Then: 성공 메시지 확인
+    await screen.findByText(/일정이 추가되었습니다/i);
+
+    // 31일이 있는 월: 1월, 3월, 5월, 7월, 8월, 10월 (6개월)
+    // 31일이 없는 월: 2월, 4월, 6월, 9월, 11월 (일정 생성 안 함)
+    expect(mockEvents.length).toBe(6);
+
+    // 생성된 일정의 날짜 검증 (31일만 포함되어야 함)
+    const dates = mockEvents.map((e) => e.date).sort();
+    expect(dates).toEqual([
+      '2025-01-31',
+      '2025-03-31',
+      '2025-05-31',
+      '2025-07-31',
+      '2025-08-31',
+      '2025-10-31',
+    ]);
   });
 });
 
