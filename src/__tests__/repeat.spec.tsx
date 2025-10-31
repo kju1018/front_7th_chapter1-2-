@@ -207,6 +207,38 @@ describe("캘린더 뷰에서 반복 일정을 아이콘으로 구분하여 표�
         // Given: 반복 일정이 저장된 상태
         // When: 캘린더 주(Week) 뷰가 로드됨
         // Then: 반복 일정에 repeat-icon testId를 가진 RepeatIcon이 표시되어야 함
+        setupMockHandlerCreation();
+        const { user } = setup(<App />);
+
+        // 반복 일정 생성
+        await user.click(screen.getAllByText('일정 추가')[0]);
+
+        await user.type(screen.getByLabelText('제목'), '반복 테스트 일정');
+        await user.type(screen.getByLabelText('날짜'), '2025-10-03');
+        await user.type(screen.getByLabelText('시작 시간'), '10:00');
+        await user.type(screen.getByLabelText('종료 시간'), '11:00');
+        await user.type(screen.getByLabelText('설명'), '반복 테스트');
+        await user.type(screen.getByLabelText('위치'), '회의실');
+
+        await user.click(within(screen.getByLabelText('카테고리')).getByRole('combobox'));
+        await user.click(screen.getByRole('option', { name: '업무-option' }));
+
+        // 반복 일정 활성화 및 유형 선택
+        await user.click(screen.getByRole('checkbox', { name: '반복 일정' }));
+
+        await user.click(screen.getByRole('combobox', { name: '반복 유형' }));
+        await user.click(screen.getByRole('option', { name: '매주' }));
+
+        await user.click(screen.getByTestId('event-submit-button'));
+
+        // Week 뷰로 전환
+        await user.click(within(screen.getByLabelText('뷰 타입 선택')).getByRole('combobox'));
+        await user.click(screen.getByRole('option', { name: 'week-option' }));
+
+        // Week 뷰에서 repeat-icon 확인
+        const weekView = screen.getByTestId('week-view');
+        const repeatIcon = within(weekView).getByTestId('repeat-icon');
+        expect(repeatIcon).toBeInTheDocument();
     });
 
     it("주(Week) 뷰에서 일회성 일정에는 repeat-icon이 표시되지 않아야 한다", async () => {
@@ -214,6 +246,30 @@ describe("캘린더 뷰에서 반복 일정을 아이콘으로 구분하여 표�
         // Given: 일회성 일정이 저장된 상태
         // When: 캘린더 주(Week) 뷰가 로드됨
         // Then: 일회성 일정에 repeat-icon이 표시되지 않아야 함
+
+        const { user } = setup(<App />);
+
+        // 일회성 일정 생성 (반복 일정 체크박스 클릭하지 않음)
+        const oneTimeEvent: Omit<Event, 'id' | 'notificationTime' | 'repeat'> = {
+            title: '일회성 일정',
+            date: '2025-10-03',
+            startTime: '14:00',
+            endTime: '15:00',
+            location: '사무실',
+            description: '일회성',
+            category: '개인'
+        };
+
+        await saveSchedule(user, oneTimeEvent);
+
+        // Week 뷰로 전환
+        await user.click(within(screen.getByLabelText('뷰 타입 선택')).getByRole('combobox'));
+        await user.click(screen.getByRole('option', { name: 'week-option' }));
+
+        // Week 뷰에서 repeat-icon이 없는지 확인
+        const weekView = screen.getByTestId('week-view');
+        const repeatIcon = within(weekView).queryByTestId('repeat-icon');
+        expect(repeatIcon).not.toBeInTheDocument();
     });
 
     it("월(Month) 뷰에서 반복 일정에 repeat-icon이 표시되어야 한다", async () => {
@@ -221,6 +277,36 @@ describe("캘린더 뷰에서 반복 일정을 아이콘으로 구분하여 표�
         // Given: 반복 일정이 저장된 상태
         // When: 캘린더 월(Month) 뷰가 로드됨
         // Then: 반복 일정에 repeat-icon testId를 가진 RepeatIcon이 표시되어야 함
+        setupMockHandlerCreation();
+        const { user } = setup(<App />);
+
+        // 반복 일정 생성
+        await user.click(screen.getAllByText('일정 추가')[0]);
+        await user.type(screen.getByLabelText('날짜'), '2025-10-15');
+        await user.type(screen.getByLabelText('시작 시간'), '10:00');
+        await user.type(screen.getByLabelText('종료 시간'), '11:00');
+        await user.type(screen.getByLabelText('제목'), '반복 테스트 일정');
+        await user.type(screen.getByLabelText('설명'), '반복 테스트');
+        await user.type(screen.getByLabelText('위치'), '회의실');
+        await user.click(within(screen.getByLabelText('카테고리')).getByRole('combobox'));
+        await user.click(screen.getByRole('option', { name: '업무-option' }));
+
+        // 반복 일정 활성화 및 유형 선택
+        await user.click(screen.getByRole('checkbox', { name: '반복 일정' }));
+
+        await user.click(screen.getByRole('combobox', { name: '반복 유형' }));
+        await user.click(screen.getByRole('option', { name: '매일' }));
+
+        await user.click(screen.getByTestId('event-submit-button'));
+
+        // Month 뷰로 전환
+        await user.click(within(screen.getByLabelText('뷰 타입 선택')).getByRole('combobox'));
+        await user.click(screen.getByRole('option', { name: 'month-option' }));
+
+        // Month 뷰에서 repeat-icon 확인
+        const monthView = screen.getByTestId('month-view');
+        const repeatIcon = await within(monthView).findByTestId('repeat-icon');
+        expect(repeatIcon).toBeInTheDocument();
     });
 
     it("월(Month) 뷰에서 일회성 일정에는 repeat-icon이 표시되지 않아야 한다", async () => {
@@ -228,5 +314,29 @@ describe("캘린더 뷰에서 반복 일정을 아이콘으로 구분하여 표�
         // Given: 일회성 일정이 저장된 상태
         // When: 캘린더 월(Month) 뷰가 로드됨
         // Then: 일회성 일정에 repeat-icon이 표시되지 않아야 함
+
+        const { user } = setup(<App />);
+
+        // 일회성 일정 생성 (반복 일정 체크박스 클릭하지 않음)
+        const oneTimeEvent: Omit<Event, 'id' | 'notificationTime' | 'repeat'> = {
+            title: '일회성 일정',
+            date: '2025-10-15',
+            startTime: '16:00',
+            endTime: '17:00',
+            location: '카페',
+            description: '일회성',
+            category: '기타'
+        };
+
+        await saveSchedule(user, oneTimeEvent);
+
+        // Month 뷰로 전환
+        await user.click(within(screen.getByLabelText('뷰 타입 선택')).getByRole('combobox'));
+        await user.click(screen.getByRole('option', { name: 'month-option' }));
+
+        // Month 뷰에서 repeat-icon이 없는지 확인
+        const monthView = screen.getByTestId('month-view');
+        const repeatIcon = within(monthView).queryByTestId('repeat-icon');
+        expect(repeatIcon).not.toBeInTheDocument();
     });
 });
