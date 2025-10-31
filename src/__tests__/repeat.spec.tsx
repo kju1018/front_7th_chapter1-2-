@@ -200,3 +200,33 @@ describe("일정 생성 또는 수정 시 반복 유형 선택 기능", () => {
       expect(repeatTypeSelect).toHaveTextContent('매년');
     });
 });
+
+describe("캘린더 뷰에서 반복 일정을 아이콘으로 구분하여 표시하기", () => {
+    it("주(Week) 뷰에서 반복 일정에 repeat-icon이 표시되어야 한다", async () => {
+        // [RED]
+        // Given: 반복 일정이 저장된 상태
+        // When: 캘린더 주(Week) 뷰가 로드됨
+        // Then: 반복 일정에 repeat-icon testId를 가진 RepeatIcon이 표시되어야 함
+    });
+
+    it("주(Week) 뷰에서 일회성 일정에는 repeat-icon이 표시되지 않아야 한다", async () => {
+        // [RED]
+        // Given: 일회성 일정이 저장된 상태
+        // When: 캘린더 주(Week) 뷰가 로드됨
+        // Then: 일회성 일정에 repeat-icon이 표시되지 않아야 함
+    });
+
+    it("월(Month) 뷰에서 반복 일정에 repeat-icon이 표시되어야 한다", async () => {
+        // [RED]
+        // Given: 반복 일정이 저장된 상태
+        // When: 캘린더 월(Month) 뷰가 로드됨
+        // Then: 반복 일정에 repeat-icon testId를 가진 RepeatIcon이 표시되어야 함
+    });
+
+    it("월(Month) 뷰에서 일회성 일정에는 repeat-icon이 표시되지 않아야 한다", async () => {
+        // [RED]
+        // Given: 일회성 일정이 저장된 상태
+        // When: 캘린더 월(Month) 뷰가 로드됨
+        // Then: 일회성 일정에 repeat-icon이 표시되지 않아야 함
+    });
+});
