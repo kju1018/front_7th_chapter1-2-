@@ -340,3 +340,31 @@ describe("캘린더 뷰에서 반복 일정을 아이콘으로 구분하여 표�
         expect(repeatIcon).not.toBeInTheDocument();
     });
 });
+
+
+describe("반복 종료 조건 지정 기능", () => {
+  it("반복 종료 조건을 지정할 수 있는 컨트롤이 존재해야 한다", async () => {
+    // [RED]
+    // Given: 반복 일정 생성 폼이 열린 상태
+    // When: 폼이 로드됨
+    // Then: 반복 종료 조건 지정 영역이 표시되어야 함    
+    const { user } = setup(<App />);
+    
+    // 반복 일정 체크박스 활성화
+    const repeatCheckbox = screen.getByRole('checkbox', { name: '반복 일정' });
+    await user.click(repeatCheckbox);
+    
+    // 반복 유형 선택 (조건부 UI 트리거)
+    const repeatTypeSelect = screen.getByRole('combobox', { name: '반복 유형' });
+    await user.click(repeatTypeSelect);
+    await user.click(screen.getByRole('option', { name: '매일' }));
+    
+    // 반복 종료 조건 영역 확인 (반복 종료일 레이블)
+    const endDateLabel = await screen.findByText('반복 종료일');
+    expect(endDateLabel).toBeInTheDocument();
+    
+    // 반복 간격 레이블도 함께 표시되어야 함
+    const intervalLabel = screen.getByText('반복 간격');
+    expect(intervalLabel).toBeInTheDocument();
+  });
+});
