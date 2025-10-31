@@ -5,7 +5,7 @@ import { UserEvent, userEvent } from '@testing-library/user-event';
 import { SnackbarProvider } from 'notistack';
 import { ReactElement } from 'react';
 
-import { setupMockHandlerCreation } from '../__mocks__/handlersUtils';
+import { setupMockHandlerCreation, setupMockHandlerDeletion } from '../__mocks__/handlersUtils';
 import App from '../App';
 import { Event } from '../types';
 
@@ -743,5 +743,114 @@ describe('반복 일정 수정 시 전체 수정 기능', () => {
     // repeat-icon이 여전히 표시되는지 확인
     const repeatIconAfter = await within(monthView).findByTestId('repeat-icon');
     expect(repeatIconAfter).toBeInTheDocument();
+  });
+});
+
+describe('반복 일정 삭제', () => {
+  it("'해당 일정만 삭제하시겠어요?'라는 텍스트가 표시되어야 한다", async () => {
+    // [RED]
+    // Given: 반복 일정이 존재하고 삭제 버튼이 클릭된 상태
+    // When: 삭제 대화가 표시됨
+    // Then: '해당 일정만 삭제하시겠어요?'라는 텍스트가 화면에 표시되어야 함
+
+    setupMockHandlerCreation([
+      {
+        id: '1',
+        title: '매주 회의',
+        date: '2025-10-15',
+        startTime: '14:00',
+        endTime: '15:00',
+        description: '주간 회의',
+        location: '회의실 A',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+    ]);
+
+    const { user } = setup(<App />);
+
+    // 반복 일정 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvent = await within(eventList).findByText('매주 회의');
+    expect(repeatEvent).toBeInTheDocument();
+
+    // 삭제 버튼 클릭
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete event' });
+    await user.click(deleteButtons[0]);
+
+    // 삭제 확인 다이얼로그에서 '해당 일정만 삭제하시겠어요?' 텍스트 확인
+    const deleteDialog = await screen.findByRole('dialog');
+    const confirmText = await within(deleteDialog).findByText('해당 일정만 삭제하시겠어요?');
+    expect(confirmText).toBeInTheDocument();
+  });
+
+  it("사용자가 '예'를 누르면 해당 일정만 삭제되어야 한다", async () => {
+    // [RED]
+    // Given: '해당 일정만 삭제하시겠어요?'라는 대화가 표시된 상태
+    // When: 사용자가 '예' 버튼을 클릭함
+    // Then: 해당 일정만 삭제되어야 함 (다른 반복 일정들은 유지되어야 함)
+
+    setupMockHandlerDeletion([
+      {
+        id: '1',
+        title: '매주 회의 - 첫 번째',
+        date: '2025-10-15',
+        startTime: '14:00',
+        endTime: '15:00',
+        description: '주간 회의',
+        location: '회의실 A',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+      {
+        id: '2',
+        title: '매주 회의 - 첫 번째',
+        date: '2025-10-22',
+        startTime: '14:00',
+        endTime: '15:00',
+        description: '주간 회의',
+        location: '회의실 A',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+      {
+        id: '3',
+        title: '매주 회의 - 첫 번째',
+        date: '2025-10-29',
+        startTime: '14:00',
+        endTime: '15:00',
+        description: '주간 회의',
+        location: '회의실 A',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+    ]);
+
+    const { user } = setup(<App />);
+
+    // 반복 일정들 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvents = await within(eventList).findAllByText('매주 회의 - 첫 번째');
+    expect(repeatEvents.length).toBeGreaterThan(0);
+
+    // 삭제 버튼 클릭
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete event' });
+    await user.click(deleteButtons[0]);
+
+    // 삭제 확인 다이얼로그에서 '예' 버튼 클릭
+    const deleteDialog = await screen.findByRole('dialog');
+    const yesButton = await within(deleteDialog).findByRole('button', { name: /예/i });
+    await user.click(yesButton);
+
+    // 첫 번째 반복 일정이 삭제되고 다른 반복 일정들은 유지되어야 함
+    // (ID '1'인 일정은 삭제되고 ID '2', '3'인 일정은 남아있어야 함)
+    const updatedEventList = screen.getByTestId('event-list');
+    // 다시 로드되었을 때 반복 일정이 여전히 존재해야 함
+    const remainingEvents = await within(updatedEventList).findAllByText('매주 회의 - 첫 번째');
+    expect(remainingEvents.length).toBe(2);
   });
 });
