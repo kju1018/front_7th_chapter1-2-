@@ -1,4 +1,4 @@
-import { Notifications, ChevronLeft, ChevronRight, Delete, Edit, Close } from '@mui/icons-material';
+import { Notifications, ChevronLeft, ChevronRight, Delete, Edit, Close, Repeat } from '@mui/icons-material';
 import {
   Alert,
   AlertTitle,
@@ -184,6 +184,7 @@ function App() {
                       )
                       .map((event) => {
                         const isNotified = notifiedEvents.includes(event.id);
+                        const isRepeating = event.repeat.type !== 'none';
                         return (
                           <Box
                             key={event.id}
@@ -201,6 +202,7 @@ function App() {
                           >
                             <Stack direction="row" spacing={1} alignItems="center">
                               {isNotified && <Notifications fontSize="small" />}
+                              {isRepeating && <Repeat fontSize="small" data-testid="repeat-icon" />}
                               <Typography
                                 variant="caption"
                                 noWrap
@@ -271,6 +273,7 @@ function App() {
                             )}
                             {getEventsForDay(filteredEvents, day).map((event) => {
                               const isNotified = notifiedEvents.includes(event.id);
+                              const isRepeating = event.repeat.type !== 'none';
                               return (
                                 <Box
                                   key={event.id}
@@ -288,6 +291,7 @@ function App() {
                                 >
                                   <Stack direction="row" spacing={1} alignItems="center">
                                     {isNotified && <Notifications fontSize="small" />}
+                                    {isRepeating && <Repeat fontSize="small" data-testid="repeat-icon" />}
                                     <Typography
                                       variant="caption"
                                       noWrap
@@ -444,6 +448,7 @@ function App() {
                 <FormLabel id="repeat-type-label">반복 유형</FormLabel>
                 <Select
                   labelId="repeat-type-label"
+                  aria-label="반복 유형"
                   size="small"
                   value={repeatType}
                   onChange={(e) => setRepeatType(e.target.value as RepeatType)}
