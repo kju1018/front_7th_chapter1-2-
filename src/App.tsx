@@ -94,7 +94,7 @@ function App() {
     editEvent,
   } = useEventForm();
 
-  const { events, saveEvent, deleteEvent } = useEventOperations(Boolean(editingEvent), () =>
+  const { events, saveEvent, deleteEvent, fetchEvents } = useEventOperations(Boolean(editingEvent), () =>
     setEditingEvent(null)
   );
 
@@ -106,6 +106,7 @@ function App() {
   const [overlappingEvents, setOverlappingEvents] = useState<Event[]>([]);
   const [isEditSingleDialogOpen, setIsEditSingleDialogOpen] = useState(false);
   const [pendingEditEvent, setPendingEditEvent] = useState<Event | null>(null);
+  const [isEditingAllSeries, setIsEditingAllSeries] = useState(false);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -128,9 +129,11 @@ function App() {
           ...pendingEditEvent,
           repeat: { type: 'none' as const, interval: 0 },
         };
+        setIsEditingAllSeries(false);
         editEvent(modifiedEvent);
       } else {
         // 전체 시리즈 수정
+        setIsEditingAllSeries(true);
         editEvent(pendingEditEvent);
       }
       setPendingEditEvent(null);
@@ -170,8 +173,61 @@ function App() {
       setOverlappingEvents(overlapping);
       setIsOverlapDialogOpen(true);
     } else {
-      await saveEvent(eventData);
+      // 전체 시리즈 수정 모드인 경우
+      if (isEditingAllSeries && editingEvent) {
+        await saveAllSeriesEvents(eventData as Event);
+        setIsEditingAllSeries(false);
+      } else {
+        await saveEvent(eventData);
+      }
       resetForm();
+    }
+  };
+
+  // 반복 시리즈의 모든 이벤트를 업데이트하는 함수
+  const saveAllSeriesEvents = async (updatedEvent: Event) => {
+    try {
+      // 같은 반복 시리즈에 속한 모든 이벤트 찾기
+      const seriesEvents = events.filter(
+        (event) =>
+          event.id !== updatedEvent.id &&
+          event.repeat.type === updatedEvent.repeat.type &&
+          event.repeat.type !== 'none' &&
+          event.startTime === editingEvent?.startTime &&
+          event.endTime === editingEvent?.endTime
+      );
+
+      // 업데이트된 이벤트 자신 먼저 업데이트
+      await fetch(`/api/events/${updatedEvent.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedEvent),
+      });
+
+      // 시리즈의 다른 모든 이벤트들도 업데이트
+      for (const event of seriesEvents) {
+        const updatedSeriesEvent: Event = {
+          ...event,
+          title: updatedEvent.title,
+          description: updatedEvent.description,
+          location: updatedEvent.location,
+          category: updatedEvent.category,
+          repeat: updatedEvent.repeat,
+          notificationTime: updatedEvent.notificationTime,
+        };
+
+        await fetch(`/api/events/${event.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedSeriesEvent),
+        });
+      }
+
+      await fetchEvents(); // 이벤트 목록 새로고침
+      enqueueSnackbar('반복 일정 시리즈가 모두 수정되었습니다.', { variant: 'success' });
+    } catch (error) {
+      console.error('Error updating series:', error);
+      enqueueSnackbar('시리즈 수정 실패', { variant: 'error' });
     }
   };
 
