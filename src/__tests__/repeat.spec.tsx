@@ -342,6 +342,165 @@ describe('반복 일정 생성 시 31일 매월 반복 기능', () => {
   });
 });
 
+describe('반복일정은 일정 겹침을 고려하지 않는다', () => {
+  it('반복일정이 생성될 때 겹침 경고나 에러가 표시되지 않아야 한다', async () => {
+    // [RED]
+    // Given: 기존 일정과 겹치는 반복일정 생성 상황
+    // When: 사용자가 저장 버튼을 클릭함
+    // Then: 겹침에 대한 경고나 에러 메시지가 표시되지 않아야 함
+    const mockEvents: Event[] = [
+      {
+        id: '1',
+        title: '기존 회의',
+        date: '2025-10-15',
+        startTime: '09:00',
+        endTime: '10:00',
+        description: '기존 팀 미팅',
+        location: '회의실 B',
+        category: '업무',
+        repeat: { type: 'none', interval: 0 },
+        notificationTime: 10,
+      },
+    ];
+
+    server.use(
+      http.get('/api/events', () => {
+        return HttpResponse.json({ events: mockEvents });
+      }),
+      http.post('/api/events-list', async ({ request }) => {
+        const body = (await request.json()) as { events: Event[] };
+        body.events.forEach((event, index) => {
+          event.id = String(mockEvents.length + index + 1);
+          mockEvents.push(event);
+        });
+        return HttpResponse.json({ events: body.events }, { status: 201 });
+      })
+    );
+
+    const { user } = setup(<App />);
+
+    // Given: 겹치는 시간대에 반복 일정 생성 폼 작성
+    await user.click(screen.getAllByText('일정 추가')[0]);
+
+    await user.type(screen.getByLabelText('제목'), '겹치는 반복 일정');
+    await user.type(screen.getByLabelText('날짜'), '2025-10-15');
+    await user.type(screen.getByLabelText('시작 시간'), '09:30');
+    await user.type(screen.getByLabelText('종료 시간'), '10:30');
+    await user.type(screen.getByLabelText('설명'), '반복 테스트');
+    await user.type(screen.getByLabelText('위치'), '회의실 A');
+
+    // 카테고리 선택
+    await user.click(screen.getByLabelText('카테고리'));
+    await user.click(within(screen.getByLabelText('카테고리')).getByRole('combobox'));
+    await user.click(screen.getByRole('option', { name: '업무-option' }));
+
+    // 반복 일정 활성화
+    const repeatCheckbox = screen.getByRole('checkbox', { name: '반복 일정' });
+    await user.click(repeatCheckbox);
+
+    // 반복 유형을 '매일'로 선택
+    const repeatTypeSelect = screen.getByRole('combobox', { name: /반복 유형/i });
+    await user.click(repeatTypeSelect);
+    const dailyOption = screen.getByRole('option', { name: /매일/i });
+    await user.click(dailyOption);
+
+    // 반복 종료일 설정
+    const endDateInput = screen.getByLabelText(/반복 종료일/i);
+    await user.clear(endDateInput);
+    await user.type(endDateInput, '2025-10-20');
+
+    // When: 저장 버튼 클릭
+    await user.click(screen.getByTestId('event-submit-button'));
+
+    // Then: 겹침 경고 다이얼로그가 나타나지 않고 성공 메시지만 표시되어야 함
+    const successMessage = await screen.findByText(/일정이 추가되었습니다/i);
+    expect(successMessage).toBeInTheDocument();
+
+    // 겹침 경고 다이얼로그가 없어야 함
+    expect(screen.queryByText('일정 겹침 경고')).not.toBeInTheDocument();
+  });
+
+  it('반복일정이 다른 일정과 겹치더라도 둘 다 생성되어야 한다', async () => {
+    // [RED]
+    // Given: 일정 A가 저장된 상태
+    // When: 일정 A와 겹치는 시간대에 반복일정 B를 생성함
+    // Then: 겹침 여부와 관계없이 반복일정 A와 B가 모두 생성되어야 함
+    const mockEvents: Event[] = [
+      {
+        id: '1',
+        title: '일반 일정 A',
+        date: '2025-10-15',
+        startTime: '10:00',
+        endTime: '11:00',
+        description: '일반 일정',
+        location: '회의실 A',
+        category: '업무',
+        repeat: { type: 'none', interval: 0 },
+        notificationTime: 10,
+      },
+    ];
+
+    server.use(
+      http.get('/api/events', () => {
+        return HttpResponse.json({ events: mockEvents });
+      }),
+      http.post('/api/events-list', async ({ request }) => {
+        const body = (await request.json()) as { events: Event[] };
+        body.events.forEach((event, index) => {
+          event.id = String(mockEvents.length + index + 1);
+          mockEvents.push(event);
+        });
+        return HttpResponse.json({ events: body.events }, { status: 201 });
+      })
+    );
+
+    const { user } = setup(<App />);
+
+    // When: 일반 일정 A와 겹치는 시간대에 반복일정 B 생성 (10:30-11:30, 매일, 10/15-10/17)
+    await user.click(screen.getAllByText('일정 추가')[0]);
+
+    await user.type(screen.getByLabelText('제목'), '반복 일정 B');
+    await user.type(screen.getByLabelText('날짜'), '2025-10-15');
+    await user.type(screen.getByLabelText('시작 시간'), '10:30');
+    await user.type(screen.getByLabelText('종료 시간'), '11:30');
+    await user.type(screen.getByLabelText('설명'), '반복 일정');
+    await user.type(screen.getByLabelText('위치'), '회의실 B');
+
+    // 카테고리 선택
+    await user.click(screen.getByLabelText('카테고리'));
+    await user.click(within(screen.getByLabelText('카테고리')).getByRole('combobox'));
+    await user.click(screen.getByRole('option', { name: '개인-option' }));
+
+    // 반복 일정 활성화
+    await user.click(screen.getByRole('checkbox', { name: '반복 일정' }));
+
+    // 반복 유형을 '매일'로 선택
+    await user.click(screen.getByRole('combobox', { name: /반복 유형/i }));
+    await user.click(screen.getByRole('option', { name: /매일/i }));
+
+    // 반복 종료일 설정
+    const endDateInput = screen.getByLabelText(/반복 종료일/i);
+    await user.clear(endDateInput);
+    await user.type(endDateInput, '2025-10-17');
+
+    // 일정 추가
+    await user.click(screen.getByTestId('event-submit-button'));
+
+    // Then: 겹침 경고 다이얼로그가 나타나지 않고 성공 메시지만 표시되어야 함
+    const successMessage = await screen.findByText(/일정이 추가되었습니다/i);
+    expect(successMessage).toBeInTheDocument();
+
+    // 겹침 경고 다이얼로그가 없어야 함
+    expect(screen.queryByText('일정 겹침 경고')).not.toBeInTheDocument();
+
+    // 일반 일정 A와 반복일정 B가 모두 존재하는지 확인
+    // 일반 일정 A 1개 + 반복일정 B 3개 (10/15, 10/16, 10/17) = 총 4개
+    expect(mockEvents.length).toBe(4);
+    expect(mockEvents[0].title).toBe('일반 일정 A');
+    expect(mockEvents.filter((e) => e.title === '반복 일정 B').length).toBe(3);
+  });
+});
+
 describe('캘린더 뷰에서 반복 일정을 아이콘으로 구분하여 표시하기', () => {
   it('주(Week) 뷰에서 반복 일정에 repeat-icon이 표시되어야 한다', async () => {
     // [RED]
