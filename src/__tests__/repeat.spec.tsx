@@ -570,14 +570,125 @@ describe("반복 일정 수정 시 전체 수정 기능", () => {
     // Given: '해당 일정만 수정하시겠어요?' 다이얼로그가 표시된 상태
     // When: 사용자가 '아니오' 버튼을 클릭함
     // Then: 전체 수정이 실행되어야 함
-
+    
+    // 반복 일정 초기화
+    setupMockHandlerCreation([
+      {
+        id: '1',
+        title: '매주 스크럼',
+        date: '2025-10-20',
+        startTime: '09:00',
+        endTime: '10:00',
+        description: '일일 스크럼',
+        location: '회의실 B',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      }
+    ]);
+    
+    const { user } = setup(<App />);
+    
+    // 반복 일정 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvent = await within(eventList).findByText('매주 스크럼');
+    expect(repeatEvent).toBeInTheDocument();
+    
+    // Edit 버튼 클릭
+    const editButtons = screen.getAllByRole('button', { name: 'Edit event' });
+    await user.click(editButtons[0]);
+    
+    // 다이얼로그에서 '아니오' 버튼 클릭 (전체 수정)
+    const dialog = await screen.findByRole('dialog');
+    const noButton = await within(dialog).findByRole('button', { name: /아니오/i });
+    await user.click(noButton);
+    
+    // 반복 유형 Select가 나타날 때까지 기다림 (조건부 UI)
+    const repeatTypeSelect = await screen.findByRole('combobox', { name: '반복 유형' });
+    expect(repeatTypeSelect).toBeInTheDocument();
+    
+    // 수정 폼이 열렸는지 확인 (반복 일정 체크박스가 체크된 상태)
+    const repeatCheckbox = screen.getByRole('checkbox', { name: '반복 일정' });
+    expect(repeatCheckbox).toBeChecked();
   });
 
   it("'아니오'를 눌러 전체 수정한 경우 반복 일정이 유지되어야 한다", async () => {
     // [GREEN]
     // Given: '아니오' 버튼을 클릭하여 전체 수정을 진행한 상태
     // When: 수정이 완료됨
-    // Then: 반복 일정이 유지되어야 함 
+    // Then: 반복 일정이 유지되어야 함
+    
+    // 반복 일정 시리즈 3개로 초기화
+    setupMockHandlerCreation([
+      {
+        id: '1',
+        title: '매주 스크럼',
+        date: '2025-10-13',
+        startTime: '09:00',
+        endTime: '10:00',
+        description: '일일 스크럼',
+        location: '회의실 B',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+      {
+        id: '2',
+        title: '매주 스크럼',
+        date: '2025-10-20',
+        startTime: '09:00',
+        endTime: '10:00',
+        description: '일일 스크럼',
+        location: '회의실 B',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+      {
+        id: '3',
+        title: '매주 스크럼',
+        date: '2025-10-27',
+        startTime: '09:00',
+        endTime: '10:00',
+        description: '일일 스크럼',
+        location: '회의실 B',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      }
+    ]);
+    
+    const { user } = setup(<App />);
+    
+    // 반복 일정 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvents = await within(eventList).findAllByText('매주 스크럼');
+    expect(repeatEvents.length).toBe(3);
+    
+    // Edit 버튼 클릭
+    const editButtons = screen.getAllByRole('button', { name: 'Edit event' });
+    await user.click(editButtons[0]);
+    
+    // 다이얼로그에서 '아니오' 버튼 클릭 (전체 수정)
+    const dialog = await screen.findByRole('dialog');
+    const noButton = await within(dialog).findByRole('button', { name: /아니오/i });
+    await user.click(noButton);
+    
+    // 제목 수정
+    const titleInput = screen.getByLabelText('제목');
+    await user.clear(titleInput);
+    await user.type(titleInput, '매주 데일리 스크럼');
+    
+    // 수정 완료
+    await user.click(screen.getByTestId('event-submit-button'));
+    
+    // [GREEN] 전체 일정이 수정되었는지 확인
+    const updatedEvents = await within(eventList).findAllByText('매주 데일리 스크럼');
+    expect(updatedEvents.length).toBe(3); // 3개 모두 수정됨
+    
+    // 반복 정보가 유지되는지 확인 (event-list에서 "반복:" 텍스트 확인)
+    const repeatInfo = within(eventList).getAllByText(/반복:/);
+    expect(repeatInfo.length).toBeGreaterThan(0);
   });
 
   it("'아니오'를 눌러 전체 수정한 경우 반복일정 아이콘이 유지되어야 한다", async () => {
@@ -586,5 +697,57 @@ describe("반복 일정 수정 시 전체 수정 기능", () => {
     // When: 수정이 완료되고 캘린더 뷰가 표시됨
     // Then: 반복일정 아이콘(repeat-icon)이 유지되어야 함
     
+    // 반복 일정 초기화
+    setupMockHandlerCreation([
+      {
+        id: '1',
+        title: '매주 스크럼',
+        date: '2025-10-20',
+        startTime: '09:00',
+        endTime: '10:00',
+        description: '일일 스크럼',
+        location: '회의실 B',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      }
+    ]);
+    
+    const { user } = setup(<App />);
+    
+    // 반복 일정 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvent = await within(eventList).findByText('매주 스크럼');
+    expect(repeatEvent).toBeInTheDocument();
+    
+    // 월(Month) 뷰에서 repeat-icon 확인 (기본 뷰가 month)
+    const monthView = screen.getByTestId('month-view');
+    const repeatIconBefore = await within(monthView).findByTestId('repeat-icon');
+    expect(repeatIconBefore).toBeInTheDocument();
+    
+    // Edit 버튼 클릭
+    const editButtons = screen.getAllByRole('button', { name: 'Edit event' });
+    await user.click(editButtons[0]);
+    
+    // 다이얼로그에서 '아니오' 버튼 클릭 (전체 수정)
+    const dialog = await screen.findByRole('dialog');
+    const noButton = await within(dialog).findByRole('button', { name: /아니오/i });
+    await user.click(noButton);
+    
+    // 제목 수정
+    const titleInput = screen.getByLabelText('제목');
+    await user.clear(titleInput);
+    await user.type(titleInput, '매주 데일리 스크럼');
+    
+    // 수정 완료
+    await user.click(screen.getByTestId('event-submit-button'));
+    
+    // 수정된 일정 확인
+    const updatedEvent = await within(eventList).findByText('매주 데일리 스크럼');
+    expect(updatedEvent).toBeInTheDocument();
+    
+    // repeat-icon이 여전히 표시되는지 확인
+    const repeatIconAfter = await within(monthView).findByTestId('repeat-icon');
+    expect(repeatIconAfter).toBeInTheDocument();
   });
 });
