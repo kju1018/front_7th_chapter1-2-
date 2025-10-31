@@ -282,48 +282,52 @@ function App() {
       notificationTime,
     };
 
-    const overlapping = findOverlappingEvents(eventData, events);
-    if (overlapping.length > 0) {
-      setOverlappingEvents(overlapping);
-      setIsOverlapDialogOpen(true);
-    } else {
-      // 전체 시리즈 수정 모드인 경우
-      if (isEditingAllSeries && editingEvent) {
-        await saveAllSeriesEvents(eventData as Event);
-        setIsEditingAllSeries(false);
-      } else if (isRepeating && !editingEvent && repeatEndDate) {
-        // 반복 일정 생성 (새로운 일정, 반복 유형 선택됨, 종료일 지정됨)
-        const recurringEvents = generateRecurringEvents(
-          eventData,
-          repeatType,
-          repeatInterval,
-          repeatEndDate
-        );
-
-        // /api/events-list로 여러 이벤트 저장
-        try {
-          const response = await fetch('/api/events-list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ events: recurringEvents }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to save recurring events');
-          }
-
-          await fetchEvents();
-          resetForm();
-          enqueueSnackbar('일정이 추가되었습니다.', { variant: 'success' });
-        } catch (error) {
-          console.error('Error saving recurring events:', error);
-          enqueueSnackbar('일정 저장 실패', { variant: 'error' });
-        }
-      } else {
-        await saveEvent(eventData);
+    // 반복일정은 일정 겹침을 고려하지 않음
+    if (!isRepeating) {
+      const overlapping = findOverlappingEvents(eventData, events);
+      if (overlapping.length > 0) {
+        setOverlappingEvents(overlapping);
+        setIsOverlapDialogOpen(true);
+        return;
       }
-      resetForm();
     }
+
+    // 전체 시리즈 수정 모드인 경우
+    if (isEditingAllSeries && editingEvent) {
+      await saveAllSeriesEvents(eventData as Event);
+      setIsEditingAllSeries(false);
+    } else if (isRepeating && !editingEvent && repeatEndDate) {
+      // 반복 일정 생성 (새로운 일정, 반복 유형 선택됨, 종료일 지정됨)
+      const recurringEvents = generateRecurringEvents(
+        eventData,
+        repeatType,
+        repeatInterval,
+        repeatEndDate
+      );
+
+      // /api/events-list로 여러 이벤트 저장
+      try {
+        const response = await fetch('/api/events-list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ events: recurringEvents }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save recurring events');
+        }
+
+        await fetchEvents();
+        resetForm();
+        enqueueSnackbar('일정이 추가되었습니다.', { variant: 'success' });
+      } catch (error) {
+        console.error('Error saving recurring events:', error);
+        enqueueSnackbar('일정 저장 실패', { variant: 'error' });
+      }
+    } else {
+      await saveEvent(eventData);
+    }
+    resetForm();
   };
 
   // 반복 시리즈의 모든 이벤트를 업데이트하는 함수
