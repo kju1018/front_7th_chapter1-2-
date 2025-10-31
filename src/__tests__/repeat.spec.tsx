@@ -854,3 +854,97 @@ describe('반복 일정 삭제', () => {
     expect(remainingEvents.length).toBe(2);
   });
 });
+
+describe("반복 일정 삭제 시 '아니오' 버튼 클릭 - 전체 삭제 기능", () => {
+  it("'해당 일정만 삭제하시겠어요?' 다이얼로그에서 '아니오' 버튼이 표시되어야 한다", async () => {
+    // [RED]
+    // Given: 반복 일정이 저장된 상태
+    // When: 반복 일정의 삭제 버튼을 클릭함
+    // Then: '아니오' 버튼이 표시된 다이얼로그가 나타나야 함
+
+    setupMockHandlerCreation([
+      {
+        id: '1',
+        title: '매주 팀 회의',
+        date: '2025-10-20',
+        startTime: '14:00',
+        endTime: '15:00',
+        description: '팀 회의',
+        location: '회의실',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+    ]);
+
+    const { user } = setup(<App />);
+
+    // 반복 일정 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvent = await within(eventList).findByText('매주 팀 회의');
+    expect(repeatEvent).toBeInTheDocument();
+
+    // 삭제 버튼 클릭
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete event' });
+    await user.click(deleteButtons[0]);
+
+    // 삭제 확인 다이얼로그에서 '아니오' 버튼 확인
+    const deleteDialog = await screen.findByRole('dialog');
+    const noButton = await within(deleteDialog).findByRole('button', { name: /아니오/i });
+    expect(noButton).toBeInTheDocument();
+  });
+
+  it("'아니오' 버튼을 클릭하면 해당 반복 일정의 모든 일정을 삭제할 수 있어야 한다", async () => {
+    // [RED]
+    // Given: '해당 일정만 삭제하시겠어요?' 다이얼로그가 표시된 상태
+    // When: 사용자가 '아니오' 버튼을 클릭함
+    // Then: 반복 일정의 모든 일정(시리즈 전체)이 삭제되어야 함
+
+    setupMockHandlerDeletion([
+      {
+        id: '1',
+        title: '매주 스크럼 - 전체',
+        date: '2025-10-13',
+        startTime: '09:00',
+        endTime: '10:00',
+        description: '팀 스크럼',
+        location: '회의실 B',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+      {
+        id: '2',
+        title: '매주 스크럼 - 전체',
+        date: '2025-10-20',
+        startTime: '09:00',
+        endTime: '10:00',
+        description: '팀 스크럼',
+        location: '회의실 B',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      },
+    ]);
+
+    const { user } = setup(<App />);
+
+    // 반복 일정 시리즈 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvents = await within(eventList).findAllByText('매주 스크럼 - 전체');
+    expect(repeatEvents.length).toBeGreaterThan(0);
+
+    // 첫 번째 삭제 버튼 클릭
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete event' });
+    await user.click(deleteButtons[0]);
+
+    // 삭제 다이얼로그 확인
+    const deleteDialog = await screen.findByRole('dialog');
+    const noButton = await within(deleteDialog).findByRole('button', { name: /아니오/i });
+    const yesButton = await within(deleteDialog).findByRole('button', { name: /예/i });
+
+    // '아니오' 버튼과 '예' 버튼이 모두 표시되어야 함
+    expect(noButton).toBeInTheDocument();
+    expect(yesButton).toBeInTheDocument();
+  });
+});
