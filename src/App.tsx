@@ -1,4 +1,10 @@
-import { Notifications, ChevronLeft, ChevronRight, Delete, Edit, Close, Repeat } from '@mui/icons-material';
+import ChevronLeft from '@mui/icons-material/ChevronLeft';
+import ChevronRight from '@mui/icons-material/ChevronRight';
+import Delete from '@mui/icons-material/Delete';
+import Edit from '@mui/icons-material/Edit';
+import Close from '@mui/icons-material/Edit';
+import Notifications from '@mui/icons-material/Notifications';
+import Repeat from '@mui/icons-material/Repeat';
 import {
   Alert,
   AlertTitle,
@@ -94,8 +100,9 @@ function App() {
     editEvent,
   } = useEventForm();
 
-  const { events, saveEvent, deleteEvent, fetchEvents } = useEventOperations(Boolean(editingEvent), () =>
-    setEditingEvent(null)
+  const { events, saveEvent, deleteEvent, fetchEvents } = useEventOperations(
+    Boolean(editingEvent),
+    () => setEditingEvent(null)
   );
 
   const { notifications, notifiedEvents, setNotifications } = useNotifications(events);
@@ -377,7 +384,9 @@ function App() {
                                 >
                                   <Stack direction="row" spacing={1} alignItems="center">
                                     {isNotified && <Notifications fontSize="small" />}
-                                    {isRepeating && <Repeat fontSize="small" data-testid="repeat-icon" />}
+                                    {isRepeating && (
+                                      <Repeat fontSize="small" data-testid="repeat-icon" />
+                                    )}
                                     <Typography
                                       variant="caption"
                                       noWrap
@@ -727,9 +736,7 @@ function App() {
       <Dialog open={isEditSingleDialogOpen} onClose={() => setIsEditSingleDialogOpen(false)}>
         <DialogTitle>반복 일정 수정</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            해당 일정만 수정하시겠어요?
-          </DialogContentText>
+          <DialogContentText>해당 일정만 수정하시겠어요?</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => handleEditSingleConfirm(false)}>아니오</Button>
