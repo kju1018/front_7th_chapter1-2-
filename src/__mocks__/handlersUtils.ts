@@ -74,8 +74,9 @@ export const setupMockHandlerUpdating = () => {
   );
 };
 
-export const setupMockHandlerDeletion = () => {
-  const mockEvents: Event[] = [
+export const setupMockHandlerDeletion = (initEvents = [] as Event[]) => {
+  // 파라미터가 없으면 기본 데이터 사용, 있으면 파라미터 사용
+  const defaultEvents: Event[] = [
     {
       id: '1',
       title: '삭제할 이벤트',
@@ -90,6 +91,8 @@ export const setupMockHandlerDeletion = () => {
     },
   ];
 
+  const mockEvents: Event[] = initEvents.length > 0 ? [...initEvents] : [...defaultEvents];
+
   server.use(
     http.get('/api/events', () => {
       return HttpResponse.json({ events: mockEvents });
@@ -98,8 +101,11 @@ export const setupMockHandlerDeletion = () => {
       const { id } = params;
       const index = mockEvents.findIndex((event) => event.id === id);
 
-      mockEvents.splice(index, 1);
-      return new HttpResponse(null, { status: 204 });
+      if (index !== -1) {
+        mockEvents.splice(index, 1);
+        return new HttpResponse(null, { status: 204 });
+      }
+      return new HttpResponse(null, { status: 404 });
     })
   );
 };

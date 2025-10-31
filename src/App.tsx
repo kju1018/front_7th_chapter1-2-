@@ -114,6 +114,8 @@ function App() {
   const [isEditSingleDialogOpen, setIsEditSingleDialogOpen] = useState(false);
   const [pendingEditEvent, setPendingEditEvent] = useState<Event | null>(null);
   const [isEditingAllSeries, setIsEditingAllSeries] = useState(false);
+  const [isDeleteSingleDialogOpen, setIsDeleteSingleDialogOpen] = useState(false);
+  const [pendingDeleteEvent, setPendingDeleteEvent] = useState<Event | null>(null);
 
   const { enqueueSnackbar } = useSnackbar();
 
@@ -144,6 +146,24 @@ function App() {
         editEvent(pendingEditEvent);
       }
       setPendingEditEvent(null);
+    }
+  };
+
+  const handleDeleteClick = (event: Event) => {
+    // 반복 일정인지 확인
+    if (event.repeat.type !== 'none') {
+      setPendingDeleteEvent(event);
+      setIsDeleteSingleDialogOpen(true);
+    } else {
+      deleteEvent(event.id);
+    }
+  };
+
+  const handleDeleteSingleConfirm = () => {
+    setIsDeleteSingleDialogOpen(false);
+    if (pendingDeleteEvent) {
+      deleteEvent(pendingDeleteEvent.id);
+      setPendingDeleteEvent(null);
     }
   };
 
@@ -680,7 +700,7 @@ function App() {
                     <IconButton aria-label="Edit event" onClick={() => handleEditClick(event)}>
                       <Edit />
                     </IconButton>
-                    <IconButton aria-label="Delete event" onClick={() => deleteEvent(event.id)}>
+                    <IconButton aria-label="Delete event" onClick={() => handleDeleteClick(event)}>
                       <Delete />
                     </IconButton>
                   </Stack>
@@ -741,6 +761,19 @@ function App() {
         <DialogActions>
           <Button onClick={() => handleEditSingleConfirm(false)}>아니오</Button>
           <Button onClick={() => handleEditSingleConfirm(true)} color="primary">
+            예
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={isDeleteSingleDialogOpen} onClose={() => setIsDeleteSingleDialogOpen(false)}>
+        <DialogTitle>반복 일정 삭제</DialogTitle>
+        <DialogContent>
+          <DialogContentText>해당 일정만 삭제하시겠어요?</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => handleDeleteSingleConfirm()}>아니오</Button>
+          <Button onClick={() => handleDeleteSingleConfirm()} color="error">
             예
           </Button>
         </DialogActions>
