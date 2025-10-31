@@ -507,6 +507,58 @@ describe("반복 일정 수정 시 반복일정 아이콘 제거 기능", () => 
     // Given: 반복 일정이 저장되고 캘린더에 표시된 상태
     // When: 해당 반복 일정을 수정함
     // Then: 반복 일정 아이콘(repeat-icon)이 사라져야 함
-   
+    
+    // 반복 일정 초기화
+    setupMockHandlerCreation([
+      {
+        id: '1',
+        title: '매주 회의',
+        date: '2025-10-20',
+        startTime: '10:00',
+        endTime: '11:00',
+        description: '주간 미팅',
+        location: '회의실 A',
+        category: '업무',
+        repeat: { type: 'weekly', interval: 1 },
+        notificationTime: 10,
+      }
+    ]);
+    
+    const { user } = setup(<App />);
+    
+    // 반복 일정이 로드되고 아이콘이 표시되는지 확인
+    const eventList = screen.getByTestId('event-list');
+    const repeatEvent = await within(eventList).findByText('매주 회의');
+    expect(repeatEvent).toBeInTheDocument();
+    
+    // 월(Month) 뷰에서 repeat-icon 확인 (기본 뷰가 month)
+    const monthView = screen.getByTestId('month-view');
+    const repeatIconBefore = await within(monthView).findByTestId('repeat-icon');
+    expect(repeatIconBefore).toBeInTheDocument();
+    
+    // 반복 일정 수정 시작
+    const editButtons = screen.getAllByRole('button', { name: 'Edit event' });
+    await user.click(editButtons[0]);
+    
+    // 다이얼로그에서 '예' 버튼 클릭 (해당 일정만 수정)
+    const dialog = await screen.findByRole('dialog');
+    const yesButton = await within(dialog).findByRole('button', { name: /예/i });
+    await user.click(yesButton);
+    
+    // 일정 제목 수정
+    const titleInput = screen.getByLabelText('제목');
+    await user.clear(titleInput);
+    await user.type(titleInput, '수정된 회의');
+    
+    // 수정 완료
+    await user.click(screen.getByTestId('event-submit-button'));
+    
+    // 수정된 일정 확인
+    const updatedEvent = await within(eventList).findByText('수정된 회의');
+    expect(updatedEvent).toBeInTheDocument();
+    
+    // repeat-icon이 사라졌는지 확인
+    const repeatIconAfter = within(monthView).queryByTestId('repeat-icon');
+    expect(repeatIconAfter).not.toBeInTheDocument();
   });
 });
