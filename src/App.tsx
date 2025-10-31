@@ -159,11 +159,45 @@ function App() {
     }
   };
 
-  const handleDeleteSingleConfirm = () => {
+  const handleDeleteSingleConfirm = (deleteAllSeries: boolean) => {
     setIsDeleteSingleDialogOpen(false);
     if (pendingDeleteEvent) {
-      deleteEvent(pendingDeleteEvent.id);
+      if (deleteAllSeries) {
+        // 전체 시리즈 삭제
+        deleteAllSeriesEvents(pendingDeleteEvent);
+      } else {
+        // 해당 일정만 삭제
+        deleteEvent(pendingDeleteEvent.id);
+      }
       setPendingDeleteEvent(null);
+    }
+  };
+
+  // 반복 시리즈의 모든 이벤트를 삭제하는 함수
+  const deleteAllSeriesEvents = async (eventToDelete: Event) => {
+    try {
+      // 같은 반복 시리즈에 속한 모든 이벤트 찾기
+      const seriesEvents = events.filter(
+        (event) =>
+          event.repeat.type === eventToDelete.repeat.type &&
+          event.repeat.type !== 'none' &&
+          event.repeat.interval === eventToDelete.repeat.interval &&
+          event.startTime === eventToDelete.startTime &&
+          event.endTime === eventToDelete.endTime
+      );
+
+      // 시리즈의 모든 이벤트 삭제
+      for (const event of seriesEvents) {
+        await fetch(`/api/events/${event.id}`, {
+          method: 'DELETE',
+        });
+      }
+
+      await fetchEvents(); // 이벤트 목록 새로고침
+      enqueueSnackbar('반복 일정 시리즈가 모두 삭제되었습니다.', { variant: 'success' });
+    } catch (error) {
+      console.error('Error deleting series:', error);
+      enqueueSnackbar('시리즈 삭제 실패', { variant: 'error' });
     }
   };
 
@@ -772,8 +806,8 @@ function App() {
           <DialogContentText>해당 일정만 삭제하시겠어요?</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => handleDeleteSingleConfirm()}>아니오</Button>
-          <Button onClick={() => handleDeleteSingleConfirm()} color="error">
+          <Button onClick={() => handleDeleteSingleConfirm(true)}>아니오</Button>
+          <Button onClick={() => handleDeleteSingleConfirm(false)} color="error">
             예
           </Button>
         </DialogActions>
